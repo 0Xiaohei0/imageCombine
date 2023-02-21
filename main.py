@@ -3,32 +3,46 @@ import os
 import rpack
 
 
-def merge(imageArray):
-    w = 0
-    maxh = 0
-    for image in imageArray:
-        w += image.size[0]
-        maxh = max(image.size[1], maxh)
-    output = Image.new("RGBA", (w, maxh))
-
-    pasteStart = 0
-    for image in imageArray:
-        output.paste(image, (pasteStart, 0))
-        pasteStart += image.size[0]
-
+def merge(imageArray, positionArray, size):
+    output = Image.new("RGBA", size)
+    for idx, image in enumerate(imageArray):
+        output.paste(image, positionArray[idx])
     return output
 
 
+scale = False
+maxsize = (200, 200)
+resizeFactor = 0.1
 path = "../images"
 fileNames = os.listdir(path)
 imageArray = []
-for name in fileNames:
-    imageArray.append(Image.open(path + "/" + name))
 
+print("Loading image...")
+for idx, name in enumerate(fileNames):
+    image = Image.open(path + "/" + name)
+    print("Resizing ", end="")
+    print(idx + 1, end="")
+    print(" out of ", end="")
+    print(len(fileNames))
+    if scale:
+        image = image.resize(
+            (
+                (int(float(image.size[0]) * resizeFactor)),
+                (int(float(image.size[1]) * resizeFactor)),
+            )
+        )
+    else:
+        image.thumbnail(maxsize, Image.ANTIALIAS)
+    imageArray.append(image)
 
-sizeArray = map(lambda image: (image.size[0], image.size[1]), imageArray)
-positions = rpack.pack(sizeArray)
-print(positions)
+print("Packing...")
+sizeArray = list(map(lambda image: (image.size[0], image.size[1]), imageArray))
+positionArray = rpack.pack(sizeArray)
 
-mergedImage = merge(imageArray)
+print("Packing finished with size: ", rpack.bbox_size(sizeArray, positionArray))
+
+mergedImage = merge(
+    imageArray, positionArray, rpack.bbox_size(sizeArray, positionArray)
+)
+mergedImage.save("output.png")
 mergedImage.show()
